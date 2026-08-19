@@ -2,18 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ReceiptText, LayoutDashboard, ShoppingBag, Users, Settings } from "lucide-react";
+import { ReceiptText, LayoutDashboard, CalendarDays, ShoppingBag, Users, Settings } from "lucide-react";
 
-/* roles: qué roles ven cada pestaña. Reservas se agregará cuando se construya. */
+/* roles: qué roles ven cada pestaña. */
 const TABS = [
   { href: "/captura", label: "Captura", Icon: ReceiptText, roles: ["ADMIN", "GERENCIA", "RECEPCION"] },
   { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard, roles: ["ADMIN", "GERENCIA", "SOCIO", "RECEPCION"] },
+  { href: "/reservas", label: "Reservas", Icon: CalendarDays, roles: ["ADMIN", "GERENCIA", "RECEPCION"] },
   { href: "/gastos", label: "Gastos", Icon: ShoppingBag, roles: ["ADMIN", "GERENCIA", "RECEPCION"] },
   { href: "/socios", label: "Socios", Icon: Users, roles: ["ADMIN", "GERENCIA", "SOCIO"] },
   { href: "/admin", label: "Admin", Icon: Settings, roles: ["ADMIN"] },
 ];
 
-const base = "flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition-colors";
+const base = "flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-colors";
 
 export default function AppNav({ roleCode }: { roleCode: string | null }) {
   const pathname = usePathname();
@@ -23,12 +24,12 @@ export default function AppNav({ roleCode }: { roleCode: string | null }) {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-card">
-      <div className="mx-auto flex w-full max-w-[430px] items-stretch justify-between px-2">
+      <div className="mx-auto flex w-full max-w-[430px] items-stretch justify-between px-1">
         {tabs.map(({ href, label, Icon }) => {
           const active = pathname === href || pathname.startsWith(href + "/");
           return (
             <Link key={href} href={href} className={`${base} ${active ? "text-teal" : "text-muted hover:text-ink"}`}>
-              <Icon size={20} strokeWidth={active ? 2.4 : 2} />
+              <Icon size={19} strokeWidth={active ? 2.4 : 2} />
               {label}
             </Link>
           );
