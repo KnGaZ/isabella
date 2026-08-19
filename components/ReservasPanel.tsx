@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, X, Plus, Pencil, CalendarDays, LogIn, LogOut, BedDouble, List, ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, X, Plus, Pencil, CalendarDays, LogIn, LogOut, BedDouble, List, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { crearReserva, editarReserva, type ReservationInput, type ReservationRow } from "@/app/reservas/actions";
 
 const C = {
@@ -48,6 +48,7 @@ export default function ReservasPanel({ fecha: hoy, rooms, channels, reservasIni
   const [f, setF] = useState<ReservationInput>(vacio(hoy, rooms[0]?.id ?? "", channels[0]?.id ?? ""));
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
+  const [detalle, setDetalle] = useState<ReservationRow | null>(null);
 
   // Fecha seleccionada: por defecto hoy, o la reserva más reciente si hoy no tiene actividad
   const defaultFecha = useMemo(() => {
@@ -93,14 +94,13 @@ export default function ReservasPanel({ fecha: hoy, rooms, channels, reservasIni
   const Tarjeta = ({ r }: { r: ReservationRow }) => {
     const room = roomMap.get(r.room_id); const est = ESTATUS[r.status] ?? ESTATUS.CONFIRMADA;
     return (
-      <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 14, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+      <div onClick={() => setDetalle(r)} style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 14, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
         <div style={{ width: 44, height: 44, borderRadius: 12, flexShrink: 0, background: C.mist, display: "grid", placeItems: "center", fontFamily: "var(--font-space-mono),monospace", fontWeight: 700, fontSize: 13, color: C.deep }}>{(room?.code ?? "—").replace("i ", "i")}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nom(r)}</div>
           <div style={{ fontSize: 12, color: C.muted }}>{fFecha(r.check_in)} → {fFecha(r.check_out)} · {r.pax ?? "?"} pax{r.channel_id ? " · " + (chanMap.get(r.channel_id)?.name ?? "") : ""}</div>
         </div>
         <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: est.bg, color: est.fg, whiteSpace: "nowrap" }}>{est.label}</span>
-        <button onClick={() => abrirEdit(r)} title="Editar" style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, padding: 4 }}><Pencil size={16} /></button>
       </div>
     );
   };
@@ -168,12 +168,15 @@ export default function ReservasPanel({ fecha: hoy, rooms, channels, reservasIni
         </div>
 
         {/* Toggle vista */}
-        <div style={{ display: "flex", background: C.card, border: `1px solid ${C.line}`, borderRadius: 12, padding: 4, marginBottom: 10, maxWidth: 260 }}>
-          {([["lista", "Lista", List], ["calendario", "Calendario", CalendarDays]] as const).map(([v, l, Ic]) => (
-            <button key={v} onClick={() => setVista(v)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px", border: "none", borderRadius: 9, cursor: "pointer", fontWeight: 600, fontSize: 13.5, fontFamily: "var(--font-instrument-sans),sans-serif", background: vista === v ? C.teal : "transparent", color: vista === v ? "#fff" : C.muted }}>
-              <Ic size={15} /> {l}
-            </button>
-          ))}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+          <div style={{ display: "flex", background: C.card, border: `1px solid ${C.line}`, borderRadius: 12, padding: 4, maxWidth: 260, flex: 1 }}>
+            {([["lista", "Lista", List], ["calendario", "Calendario", CalendarDays]] as const).map(([v, l, Ic]) => (
+              <button key={v} onClick={() => setVista(v)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px", border: "none", borderRadius: 9, cursor: "pointer", fontWeight: 600, fontSize: 13.5, fontFamily: "var(--font-instrument-sans),sans-serif", background: vista === v ? C.teal : "transparent", color: vista === v ? "#fff" : C.muted }}>
+                <Ic size={15} /> {l}
+              </button>
+            ))}
+          </div>
+          <a href="/housekeeping" style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 600, color: C.teal, textDecoration: "none", whiteSpace: "nowrap" }}><Sparkles size={15} /> Limpieza</a>
         </div>
 
         {/* Navegador de fecha */}
@@ -239,7 +242,7 @@ export default function ReservasPanel({ fecha: hoy, rooms, channels, reservasIni
                             const s = Math.max(0, idxOf(r.check_in, winStart)); const e = Math.min(dias, idxOf(r.check_out, winStart));
                             const w = (e - s) * dayW - 3; if (w <= 0) return null;
                             return (
-                              <button key={r.id} onClick={() => abrirEdit(r)} title={`${nom(r)} · ${fFecha(r.check_in)}→${fFecha(r.check_out)}`}
+                              <button key={r.id} onClick={() => setDetalle(r)} title={`${nom(r)} · ${fFecha(r.check_in)}→${fFecha(r.check_out)}`}
                                 style={{ position: "absolute", left: s * dayW + 1.5, top: 5, height: rowH - 12, width: w, background: chanColor(r.channel_id), color: "#fff", border: "none", borderRadius: 6, fontSize: 10, fontWeight: 600, cursor: "pointer", padding: "0 6px", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", textAlign: "left" }}>
                                 {nom(r)}
                               </button>);
@@ -263,7 +266,58 @@ export default function ReservasPanel({ fecha: hoy, rooms, channels, reservasIni
           </>
         )}
       </div>
+      {detalle && (
+        <DetalleModal
+          r={detalle}
+          roomCode={roomMap.get(detalle.room_id)?.code ?? "—"}
+          channelName={detalle.channel_id ? (chanMap.get(detalle.channel_id)?.name ?? null) : null}
+          onClose={() => setDetalle(null)}
+          onEdit={() => { const r = detalle; setDetalle(null); abrirEdit(r); }}
+        />
+      )}
       {toast && <ToastView toast={toast} />}
+    </div>
+  );
+}
+
+function DetalleModal({ r, roomCode, channelName, onClose, onEdit }: { r: ReservationRow; roomCode: string; channelName: string | null; onClose: () => void; onEdit: () => void }) {
+  const est = ESTATUS[r.status] ?? ESTATUS.CONFIRMADA;
+  const n = noches(r.check_in, r.check_out);
+  const total = r.rate_per_night ? r.rate_per_night * n : 0;
+  const phone = (r.guest?.phone ?? "").replace(/[^\d]/g, "");
+  const Fila = ({ k, v }: { k: string; v: string }) => (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "9px 0", borderBottom: `1px solid ${C.mist}`, fontSize: 14 }}>
+      <span style={{ color: C.muted }}>{k}</span><span style={{ fontWeight: 600, textAlign: "right" }}>{v}</span>
+    </div>
+  );
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(12,42,48,.45)", zIndex: 60, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, width: "100%", maxWidth: 430, borderRadius: "22px 22px 0 0", padding: "20px 20px 28px", maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+          <div style={{ width: 46, height: 46, borderRadius: 12, flexShrink: 0, background: C.mist, display: "grid", placeItems: "center", fontFamily: "var(--font-space-mono),monospace", fontWeight: 700, fontSize: 14, color: C.deep }}>{roomCode.replace("i ", "i")}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ ...display, fontWeight: 800, fontSize: 18 }}>{r.guest?.full_name ?? "Sin nombre"}</div>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 999, background: est.bg, color: est.fg }}>{est.label}</span>
+          </div>
+          <button onClick={onClose} style={{ background: C.mist, border: "none", borderRadius: 999, width: 32, height: 32, cursor: "pointer", display: "grid", placeItems: "center" }}><X size={17} color={C.muted} /></button>
+        </div>
+
+        <Fila k="Fechas" v={`${fFecha(r.check_in)} → ${fFecha(r.check_out)} · ${n} noche(s)`} />
+        <Fila k="Pax" v={String(r.pax ?? "—")} />
+        <Fila k="Canal" v={channelName ?? "—"} />
+        {r.rate_per_night ? <Fila k="Tarifa" v={`${money(r.rate_per_night)}/noche · Total ${money(total)}`} /> : null}
+        <Fila k="Desayuno" v={r.breakfast_included ? "Incluido" : "No"} />
+        {r.special_requests ? <Fila k="Solicitudes" v={r.special_requests} /> : null}
+        {r.notes ? <Fila k="Notas" v={r.notes} /> : null}
+        {r.guest?.phone ? <Fila k="WhatsApp" v={r.guest.phone} /> : null}
+
+        <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+          {phone && (
+            <a href={`https://wa.me/${phone}`} target="_blank" rel="noreferrer" style={{ flex: 1, textAlign: "center", padding: 13, borderRadius: 13, background: C.inSoft, color: C.in, fontWeight: 700, fontSize: 14.5, textDecoration: "none" }}>WhatsApp</a>
+          )}
+          <button onClick={onEdit} style={{ flex: 1, padding: 13, borderRadius: 13, border: "none", background: C.teal, color: "#fff", fontWeight: 700, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Pencil size={16} /> Editar</button>
+        </div>
+      </div>
     </div>
   );
 }
