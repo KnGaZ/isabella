@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Check, Plus, Minus, ChevronDown, ChevronUp, Banknote, CreditCard, Calendar, User, X } from "lucide-react";
 import { registrarMovimiento } from "@/app/captura/actions";
+import { notificarCaja } from "@/app/captura/whatsapp";
 import type { Area, Caja, CashMovementRow, CurrencyCode, MovementType, TenderType, UserProfile } from "@/lib/types";
 
 /* ── Paleta laguna (diseño aprobado) ─────────────────────────────────── */
@@ -100,6 +101,16 @@ export default function CapturaRapida({
     }
 
     setMovs([result.movimiento, ...movs]);
+    // Aviso por WhatsApp (best-effort: no bloquea ni rompe si falla)
+    notificarCaja({
+      tipo: type,
+      monto: montoNum,
+      moneda: currency,
+      caja: cajaObj?.name ?? "—",
+      area: areaObj?.name ?? "—",
+      concepto: concepto,
+      responsable: responsable.full_name,
+        }).then((r) => { if (!r?.ok) console.log("WA error:", r?.error); }).catch((e) => console.log("WA catch:", e));
     mostrarToast(
       { msg: (type === "INGRESO" ? "Ingreso" : "Egreso") + " registrado · Folio #" + result.movimiento.folio, kind: "success" },
       2600
