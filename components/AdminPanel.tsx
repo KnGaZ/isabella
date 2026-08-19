@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Check, X, UserPlus, Plus, Power, Pencil, Trash2, ArrowRightLeft, ChevronDown, ChevronUp } from "lucide-react";
 import {
   crearUsuario, editarUsuario, cambiarActivoUsuario, reasignarMovimientos, borrarUsuario,
@@ -105,7 +106,8 @@ export default function AdminPanel({ usuarios, roles, cuentas, movementCounts, s
   return (
     <div style={{ background: C.mist, minHeight: "100%", color: C.ink }}>
       <div style={{ maxWidth: 430, margin: "0 auto", padding: "16px 16px 32px" }}>
-        <h1 style={{ ...display, fontWeight: 800, fontSize: 26, letterSpacing: "-.02em", margin: "0 0 14px" }}>Administración</h1>
+        <h1 style={{ ...display, fontWeight: 800, fontSize: 26, letterSpacing: "-.02em", margin: "0 0 10px" }}>Administración</h1>
+        <Link href="/admin/catalogos" style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 14, fontSize: 13.5, fontWeight: 600, color: C.teal, textDecoration: "none" }}>Administrar catálogos →</Link>
 
         <div style={{ display: "flex", background: C.card, border: `1px solid ${C.line}`, borderRadius: 13, padding: 4, marginBottom: 16 }}>
           {(["usuarios", "cuentas"] as const).map((t) => (
