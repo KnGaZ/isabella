@@ -81,10 +81,10 @@ export default function CatalogosPanel({ cajas, areas, channels, suppliers, part
         <h1 style={{ ...display, fontWeight: 800, fontSize: 26, letterSpacing: "-.02em", margin: "0 0 14px" }}>Catálogos</h1>
 
         {/* Selector de catálogo */}
-        <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
           {CATS.map((c) => (
             <button key={c.key} onClick={() => { setCat(c.key); setEditId(null); }}
-              style={{ flexShrink: 0, padding: "9px 14px", borderRadius: 999, border: cat === c.key ? `1.5px solid ${C.teal}` : `1.5px solid ${C.line}`, background: cat === c.key ? "#E4F1F1" : C.card, color: cat === c.key ? C.deep : C.muted, fontWeight: 600, fontSize: 13.5, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "var(--font-instrument-sans),sans-serif" }}>
+              style={{ padding: "10px 8px", borderRadius: 12, border: cat === c.key ? `1.5px solid ${C.teal}` : `1.5px solid ${C.line}`, background: cat === c.key ? "#E4F1F1" : C.card, color: cat === c.key ? C.deep : C.muted, fontWeight: 600, fontSize: 13.5, cursor: "pointer", fontFamily: "var(--font-instrument-sans),sans-serif" }}>
               {c.label}
             </button>
           ))}
