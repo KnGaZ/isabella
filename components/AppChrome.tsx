@@ -32,18 +32,29 @@ export default function AppChrome({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-line bg-mist/90 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-[430px] items-center justify-between px-4 py-3">
-          <Link href="/captura" className="font-display text-lg font-extrabold tracking-tight text-ink">
-            Isabella <span className="text-teal">·</span> Bacalar
+      <header className="sticky top-0 z-40 border-b border-line/60 bg-mist/75 backdrop-blur-md">
+        <div className="mx-auto flex h-14 w-full max-w-[430px] items-center justify-between px-4">
+          {/* Marca */}
+          <Link href="/captura" className="flex items-center gap-2.5">
+            <span
+              className="grid h-8 w-8 place-items-center rounded-xl bg-teal text-[15px] font-extrabold text-white shadow-sm"
+              style={{ fontFamily: "var(--font-bricolage), sans-serif" }}
+            >
+              I
+            </span>
+            <span className="font-display text-[17px] font-extrabold leading-none tracking-tight text-ink">
+              Isabella <span className="text-teal">Bacalar</span>
+            </span>
           </Link>
+
+          {/* Usuario + salir */}
           <div className="flex items-center gap-2">
             {nombre && (
-              <span className="flex items-center gap-2 rounded-full border border-line bg-card py-1 pl-1.5 pr-3 text-sm font-semibold text-ink">
-                <span className="grid h-6 w-6 place-items-center rounded-full bg-teal text-xs font-bold text-white">
+              <span className="flex items-center gap-2 rounded-full bg-card/70 py-1 pl-1 pr-2.5">
+                <span className="grid h-7 w-7 place-items-center rounded-full bg-deep text-xs font-bold text-white">
                   {nombre[0]}
                 </span>
-                <span className="hidden sm:inline">{nombre}</span>
+                <span className="hidden text-sm font-semibold text-ink sm:inline">{nombre}</span>
               </span>
             )}
             <LogoutButton />

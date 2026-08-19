@@ -147,20 +147,10 @@ export default function CapturaRapida({
       `}</style>
 
       <div style={{ maxWidth: 430, margin: "0 auto", padding: "18px 16px 40px" }}>
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-          <div>
-            <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 21, letterSpacing: "-.02em", lineHeight: 1 }}>
-              Caja <span style={{ color: C.teal }}>·</span> Isabella
-            </div>
-            <div style={{ fontSize: 12.5, color: C.muted, marginTop: 4 }}>Bacalar · {fmtFechaCorta(fechaHoy)}</div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.card, border: `1px solid ${C.line}`, borderRadius: 999, padding: "5px 11px 5px 6px" }}>
-            <div style={{ width: 26, height: 26, borderRadius: 999, background: C.deep, color: "#fff", display: "grid", placeItems: "center", fontSize: 12, fontWeight: 700 }}>
-              {responsable.full_name[0]}
-            </div>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>{responsable.full_name}</span>
-          </div>
+        {/* Título */}
+        <div style={{ marginBottom: 16 }}>
+          <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 26, letterSpacing: "-.02em", margin: 0 }}>Captura</h1>
+          <p style={{ fontSize: 13.5, color: C.muted, margin: "4px 0 0" }}>Registra un ingreso o egreso · {fmtFechaCorta(fechaHoy)}</p>
         </div>
 
         {/* Card principal */}
