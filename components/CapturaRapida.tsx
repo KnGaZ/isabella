@@ -110,7 +110,7 @@ export default function CapturaRapida({
       area: areaObj?.name ?? "—",
       concepto: concepto,
       responsable: responsable.full_name,
-        }).then((r) => { if (!r?.ok) console.log("WA error:", r?.error); }).catch((e) => console.log("WA catch:", e));
+            }).catch(() => {});
     mostrarToast(
       { msg: (type === "INGRESO" ? "Ingreso" : "Egreso") + " registrado · Folio #" + result.movimiento.folio, kind: "success" },
       2600
