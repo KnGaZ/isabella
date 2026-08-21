@@ -22,13 +22,16 @@ export default async function DashboardPage() {
   const today = new Date().toISOString().slice(0, 10);
   const windowStart = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
 
-  const [{ data: cajasData }, { data: bal }, { data: dt }, { data: dbc }, { data: counts }] =
+  const [{ data: cajasData }, { data: bal }, { data: dt }, { data: dbc }, { data: counts }, { data: dba }, { data: pur }, { data: areasData }] =
     await Promise.all([
       supabase.from("cajas").select("id, code, name, emoji").eq("active", true),
       supabase.from("v_cash_balance").select("caja_id, currency, balance"),
       supabase.from("v_daily_totals").select("date, ingresos, egresos").gte("date", windowStart).order("date"),
       supabase.from("v_daily_by_caja").select("date, caja_id, ingresos, egresos").gte("date", windowStart),
       supabase.from("cash_counts").select("difference").eq("date", today),
+      supabase.from("v_daily_by_area").select("date, area_id, ingresos, egresos").gte("date", windowStart),
+      supabase.from("purchases").select("date, area_id, amount, cash_movement_id").gte("date", windowStart),
+      supabase.from("areas").select("id, name").eq("active", true),
     ]);
 
   const cajas = sortCajas((cajasData ?? []) as Caja[]);
@@ -44,6 +47,9 @@ export default async function DashboardPage() {
       balances={(bal ?? []) as { caja_id: string; currency: "MXN" | "USD"; balance: number }[]}
       dailyTotals={(dt ?? []) as { date: string; ingresos: number; egresos: number }[]}
       dailyByCaja={(dbc ?? []) as { date: string; caja_id: string; ingresos: number; egresos: number }[]}
+      dailyByArea={(dba ?? []) as { date: string; area_id: string; ingresos: number; egresos: number }[]}
+      purchases={(pur ?? []) as { date: string; area_id: string | null; amount: number; cash_movement_id: string | null }[]}
+      areas={(areasData ?? []) as { id: string; name: string }[]}
       descuadre={descuadre}
     />
   );

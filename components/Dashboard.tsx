@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, ArrowDownRight, Scale, ChevronRight } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Scale, ChevronRight, Search } from "lucide-react";
 
 const C = {
   ink: "#0C2A30", mist: "#EEF4F3", card: "#FFFFFF", line: "#D8E4E2",
@@ -31,6 +31,9 @@ type CajaLite = { id: string; name: string; emoji: string | null };
 type BalanceRow = { caja_id: string; currency: "MXN" | "USD"; balance: number };
 type DailyTotal = { date: string; ingresos: number; egresos: number };
 type DailyByCaja = { date: string; caja_id: string; ingresos: number; egresos: number };
+type DailyByArea = { date: string; area_id: string; ingresos: number; egresos: number };
+type PurchaseLite = { date: string; area_id: string | null; amount: number; cash_movement_id: string | null };
+type AreaLite = { id: string; name: string };
 
 type Props = {
   fecha: string;
@@ -38,12 +41,15 @@ type Props = {
   balances: BalanceRow[];
   dailyTotals: DailyTotal[];
   dailyByCaja: DailyByCaja[];
+  dailyByArea: DailyByArea[];
+  purchases: PurchaseLite[];
+  areas: AreaLite[];
   descuadre: number | null;
 };
 
 type Periodo = "hoy" | "semana" | "mes" | "rango";
 
-export default function Dashboard({ fecha, cajas, balances, dailyTotals, dailyByCaja, descuadre }: Props) {
+export default function Dashboard({ fecha, cajas, balances, dailyTotals, dailyByCaja, dailyByArea = [], purchases = [], areas = [], descuadre }: Props) {
   const [periodo, setPeriodo] = useState<Periodo>("hoy");
   const [rIni, setRIni] = useState(addDays(fecha, -6));
   const [rFin, setRFin] = useState(fecha);
@@ -80,6 +86,28 @@ export default function Dashboard({ fecha, cajas, balances, dailyTotals, dailyBy
   }, [dailyByCaja, from, to]);
   const maxIng = Math.max(1, ...cajas.map((c) => porCaja.get(c.id) ?? 0));
   const cajasPorIngreso = [...cajas].sort((a, b) => (porCaja.get(b.id) ?? 0) - (porCaja.get(a.id) ?? 0));
+
+  // Totales por área: ingresos (caja) y egresos (caja + gastos a proveedor, sin doble conteo)
+  const porArea = useMemo(() => {
+    const ing = new Map<string, number>();
+    const cashEgr = new Map<string, number>();
+    for (const r of dailyByArea) if (enRango(r.date) && r.area_id) {
+      ing.set(r.area_id, (ing.get(r.area_id) ?? 0) + Number(r.ingresos));
+      cashEgr.set(r.area_id, (cashEgr.get(r.area_id) ?? 0) + Number(r.egresos));
+    }
+    const purTot = new Map<string, number>();
+    const purLink = new Map<string, number>();
+    for (const p of purchases) if (enRango(p.date) && p.area_id) {
+      purTot.set(p.area_id, (purTot.get(p.area_id) ?? 0) + Number(p.amount));
+      if (p.cash_movement_id) purLink.set(p.area_id, (purLink.get(p.area_id) ?? 0) + Number(p.amount));
+    }
+    return areas.map((a) => {
+      const i = ing.get(a.id) ?? 0;
+      const e = (cashEgr.get(a.id) ?? 0) + (purTot.get(a.id) ?? 0) - (purLink.get(a.id) ?? 0);
+      return { id: a.id, name: a.name, ingresos: i, egresos: e, neto: i - e };
+    }).filter((r) => r.ingresos !== 0 || r.egresos !== 0)
+      .sort((a, b) => (b.ingresos + b.egresos) - (a.ingresos + a.egresos));
+  }, [dailyByArea, purchases, areas, from, to]);
 
   // Serie por día (para la gráfica)
   const serie = useMemo(() => {
@@ -221,6 +249,52 @@ export default function Dashboard({ fecha, cajas, balances, dailyTotals, dailyBy
             </div>
           )}
         </section>
+
+        {/* Totales por área del periodo */}
+        <section style={{ background: C.card, borderRadius: 20, border: `1px solid ${C.line}`, padding: 18, boxShadow: "0 6px 22px rgba(11,43,48,.06)", marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: ".03em", textTransform: "uppercase", color: C.muted, marginBottom: 14 }}>
+            Por área · {etiquetaPeriodo}
+          </div>
+          {porArea.length === 0 ? (
+            <div style={{ fontSize: 13.5, color: C.muted, textAlign: "center", padding: "8px 0" }}>
+              Sin movimientos por área en este periodo.{periodo === "hoy" ? " Prueba con Semana o Mes." : ""}
+            </div>
+          ) : (
+            <>
+              <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+                {porArea.map((a, i) => (
+                  <div key={a.id} style={{ paddingBottom: 11, borderBottom: i < porArea.length - 1 ? `1px solid ${C.mist}` : "none" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+                      <span style={{ fontSize: 14, fontWeight: 600 }}>{a.name}</span>
+                      <span style={{ ...mono, fontSize: 13.5, fontWeight: 700, color: a.neto >= 0 ? C.in : C.out }}>
+                        {a.neto >= 0 ? "+" : "−"}{money(Math.abs(a.neto))}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: 14, ...mono, fontSize: 12 }}>
+                      <span style={{ color: C.in }}>+{money(a.ingresos)}</span>
+                      <span style={{ color: C.out }}>−{money(a.egresos)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 11.5, color: C.muted, marginTop: 12, lineHeight: 1.4 }}>
+                Neto = ingresos − egresos. Los egresos incluyen gastos a proveedor del área (sin doble conteo).
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* Buscar movimientos */}
+        <Link href="/movimientos" style={{ display: "flex", alignItems: "center", gap: 12, background: C.card, borderRadius: 16, border: `1px solid ${C.line}`, padding: "14px 16px", textDecoration: "none", color: "inherit", marginBottom: 12 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 11, flexShrink: 0, display: "grid", placeItems: "center", background: C.mist }}>
+            <Search size={18} color={C.deep} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>Buscar movimientos</div>
+            <div style={{ fontSize: 12.5, color: C.muted }}>Ver, filtrar y encontrar cualquier registro</div>
+          </div>
+          <ChevronRight size={18} color={C.muted} />
+        </Link>
 
         {/* Arqueo */}
         <Link href="/arqueo" style={{ display: "flex", alignItems: "center", gap: 12, background: C.card, borderRadius: 16, border: `1px solid ${C.line}`, padding: "14px 16px", textDecoration: "none", color: "inherit" }}>
