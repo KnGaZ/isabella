@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, X, UserPlus, Plus, Power, Pencil, Trash2, ArrowRightLeft, ChevronDown, ChevronUp, KeyRound } from "lucide-react";
+import { Check, X, UserPlus, Plus, Power, Pencil, Trash2, ArrowRightLeft, ChevronDown, ChevronUp, KeyRound, Mail } from "lucide-react";
 import {
-  crearUsuario, editarUsuario, cambiarActivoUsuario, reasignarMovimientos, borrarUsuario, cambiarPasswordUsuario,
+  crearUsuario, editarUsuario, cambiarActivoUsuario, reasignarMovimientos, borrarUsuario, cambiarPasswordUsuario, cambiarEmailUsuario,
   crearCuenta, cambiarActivoCuenta, type AdminUserRow, type AdminAccountRow,
 } from "@/app/admin/actions";
 
@@ -37,6 +37,7 @@ export default function AdminPanel({ usuarios, roles, cuentas, movementCounts, s
   const [editId, setEditId] = useState<string | null>(null);
   const [eNombre, setENombre] = useState(""); const [eRol, setERol] = useState(""); const [reTo, setReTo] = useState("");
   const [ePass, setEPass] = useState(""); const [savingPass, setSavingPass] = useState(false);
+  const [eEmail, setEEmail] = useState(""); const [savingEmail, setSavingEmail] = useState(false);
 
   // cuenta
   const [cuentaNombre, setCuentaNombre] = useState(""); const [cuentaTipo, setCuentaTipo] = useState("Débito"); const [savingC, setSavingC] = useState(false);
@@ -47,7 +48,7 @@ export default function AdminPanel({ usuarios, roles, cuentas, movementCounts, s
   const pill = (a: boolean) => ({ fontSize: 11.5, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: a ? C.inSoft : C.outSoft, color: a ? C.in : C.out });
 
   const abrirEdicion = (u: AdminUserRow) => {
-    setEditId(u.id); setENombre(u.full_name); setERol(u.role?.code ?? ""); setReTo(""); setEPass("");
+    setEditId(u.id); setENombre(u.full_name); setERol(u.role?.code ?? ""); setReTo(""); setEPass(""); setEEmail(u.email ?? "");
   };
 
   const onCrear = async () => {
@@ -77,6 +78,19 @@ export default function AdminPanel({ usuarios, roles, cuentas, movementCounts, s
     setSavingPass(false);
     if (!res.ok) return notify({ msg: res.error, kind: "error" });
     setEPass(""); notify({ msg: "Contraseña actualizada ✓", kind: "success" });
+  };
+
+  const onCambiarEmail = async (u: AdminUserRow) => {
+    if (savingEmail) return;
+    const nuevo = eEmail.trim().toLowerCase();
+    if (!nuevo.includes("@")) return notify({ msg: "Correo no válido.", kind: "error" });
+    if (nuevo === (u.email ?? "").toLowerCase()) return notify({ msg: "Es el mismo correo.", kind: "error" });
+    setSavingEmail(true);
+    const res = await cambiarEmailUsuario(u.id, nuevo);
+    setSavingEmail(false);
+    if (!res.ok) return notify({ msg: res.error, kind: "error" });
+    setLista(lista.map((x) => (x.id === u.id ? { ...x, email: nuevo } : x)));
+    notify({ msg: "Correo actualizado ✓", kind: "success" });
   };
 
   const onToggle = async (u: AdminUserRow) => {
@@ -166,6 +180,7 @@ export default function AdminPanel({ usuarios, roles, cuentas, movementCounts, s
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: 14 }}>{u.full_name} {esYo && <span style={{ fontSize: 11, color: C.teal }}>(tú)</span>}</div>
                         <div style={{ fontSize: 12, color: C.muted }}>{u.role?.name ?? "Sin rol"}{n > 0 ? ` · ${n} mov.` : ""}</div>
+                        {u.email ? <div style={{ fontSize: 11.5, color: C.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>✉️ {u.email}</div> : <div style={{ fontSize: 11.5, color: "#B7C4C4" }}>Sin correo (sin acceso)</div>}
                       </div>
                       <span style={pill(u.active)}>{u.active ? "Activo" : "Inactivo"}</span>
                       <button onClick={() => (abierto ? setEditId(null) : abrirEdicion(u))} title="Editar" style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, padding: 4 }}><Pencil size={16} /></button>
@@ -200,6 +215,19 @@ export default function AdminPanel({ usuarios, roles, cuentas, movementCounts, s
                             </button>
                           </div>
                           <div style={{ fontSize: 11.5, color: C.muted, marginTop: 8 }}>La fijas tú y se la comunicas a la persona. Aplica de inmediato.</div>
+                        </div>
+
+                        {/* Cambiar correo (login) */}
+                        <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 12, marginBottom: 12 }}>
+                          <label style={label}>Correo de acceso</label>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <input type="email" value={eEmail} onChange={(e) => setEEmail(e.target.value)} style={{ ...inputCls, marginBottom: 0, flex: 1 }} placeholder="correo@ejemplo.com" inputMode="email" />
+                            <button onClick={() => onCambiarEmail(u)} disabled={savingEmail}
+                              style={{ padding: "0 14px", borderRadius: 11, border: "none", background: C.deep, color: "#fff", fontWeight: 600, fontSize: 13.5, cursor: savingEmail ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                              <Mail size={15} /> {savingEmail ? "…" : "Cambiar"}
+                            </button>
+                          </div>
+                          <div style={{ fontSize: 11.5, color: C.out, marginTop: 8 }}>⚠️ Es la llave de entrada: al cambiarlo, la persona entra con el correo nuevo.</div>
                         </div>
 
                         {!esYo && (n > 0 ? (

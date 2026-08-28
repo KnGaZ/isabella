@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import AdminPanel from "@/components/AdminPanel";
 import type { AdminAccountRow, AdminUserRow } from "@/app/admin/actions";
 
@@ -15,7 +16,7 @@ export default async function AdminPage() {
 
   const [{ data: usuarios }, { data: roles }, { data: cuentas }, { data: cmU }, { data: puU }] =
     await Promise.all([
-      supabase.from("users").select("id, full_name, active, role:roles(code, name)").order("full_name"),
+      supabase.from("users").select("id, full_name, active, auth_uid, role:roles(code, name)").order("full_name"),
       supabase.from("roles").select("code, name").order("name"),
       supabase.from("accounts").select("id, name, kind, active").order("name"),
       supabase.from("cash_movements").select("user_id"),
@@ -27,9 +28,21 @@ export default async function AdminPage() {
   for (const r of (cmU ?? []) as { user_id: string | null }[]) if (r.user_id) counts[r.user_id] = (counts[r.user_id] ?? 0) + 1;
   for (const r of (puU ?? []) as { responsible_id: string | null }[]) if (r.responsible_id) counts[r.responsible_id] = (counts[r.responsible_id] ?? 0) + 1;
 
+  // Correos desde el sistema de autenticación (viven en auth, no en users)
+  const admin = createAdminClient();
+  const emailByUid = new Map<string, string>();
+  try {
+    const { data: authList } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    for (const au of authList?.users ?? []) if (au.email) emailByUid.set(au.id, au.email);
+  } catch { /* si falla, los correos salen vacíos */ }
+
+  const usuariosConEmail = ((usuarios ?? []) as unknown as (AdminUserRow & { auth_uid: string | null })[]).map((u) => ({
+    ...u, email: u.auth_uid ? (emailByUid.get(u.auth_uid) ?? null) : null,
+  }));
+
   return (
     <AdminPanel
-      usuarios={(usuarios ?? []) as unknown as AdminUserRow[]}
+      usuarios={usuariosConEmail as unknown as AdminUserRow[]}
       roles={(roles ?? []) as { code: string; name: string }[]}
       cuentas={(cuentas ?? []) as AdminAccountRow[]}
       movementCounts={counts}

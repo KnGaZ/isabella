@@ -8,6 +8,7 @@ export type AdminUserRow = {
   full_name: string;
   active: boolean;
   role: { code: string; name: string } | null;
+  email?: string | null;
 };
 export type AdminAccountRow = { id: string; name: string; kind: string | null; active: boolean };
 
@@ -58,7 +59,7 @@ export async function crearUsuario(
     .select("id, full_name, active, role:roles(code, name)").single();
 
   if (error || !perfil) { await admin.auth.admin.deleteUser(authData.user.id); return { ok: false, error: error?.message ?? "No se pudo crear el usuario." }; }
-  await logAudit(admin, g.profileId, "CREATE_USER", (perfil as AdminUserRow).id, { name: fullName, role: input.roleCode });
+  await logAudit(admin, g.profileId, "CREATE_USER", (perfil as unknown as AdminUserRow).id, { name: fullName, role: input.roleCode });
   return { ok: true, usuario: perfil as unknown as AdminUserRow };
 }
 
@@ -113,6 +114,29 @@ export async function cambiarPasswordUsuario(
   if (error) return { ok: false, error: error.message };
 
   await logAudit(admin, g.profileId, "CHANGE_PASSWORD", id, { name: actual.full_name });
+  return { ok: true };
+}
+
+/* ─────────────── CAMBIAR CORREO (login) ─────────────── */
+export async function cambiarEmailUsuario(
+  id: string, newEmail: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  const email = newEmail.trim().toLowerCase();
+  if (!email || !email.includes("@")) return { ok: false, error: "Correo no válido." };
+
+  const admin = createAdminClient();
+  const { data: actual } = await admin.from("users").select("full_name, auth_uid").eq("id", id).maybeSingle();
+  if (!actual) return { ok: false, error: "Usuario no encontrado." };
+  if (!actual.auth_uid) return { ok: false, error: "Este usuario no tiene acceso al sistema (no tiene correo/login)." };
+
+  const { error } = await admin.auth.admin.updateUserById(actual.auth_uid, { email, email_confirm: true });
+  if (error) {
+    const msg = /already|registered|exist|duplicate/i.test(error.message) ? "Ese correo ya está en uso por otro usuario." : error.message;
+    return { ok: false, error: msg };
+  }
+  await logAudit(admin, g.profileId, "CHANGE_EMAIL", id, { name: actual.full_name, email });
   return { ok: true };
 }
 
