@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, X, UserPlus, Plus, Power, Pencil, Trash2, ArrowRightLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, X, UserPlus, Plus, Power, Pencil, Trash2, ArrowRightLeft, ChevronDown, ChevronUp, KeyRound } from "lucide-react";
 import {
-  crearUsuario, editarUsuario, cambiarActivoUsuario, reasignarMovimientos, borrarUsuario,
+  crearUsuario, editarUsuario, cambiarActivoUsuario, reasignarMovimientos, borrarUsuario, cambiarPasswordUsuario,
   crearCuenta, cambiarActivoCuenta, type AdminUserRow, type AdminAccountRow,
 } from "@/app/admin/actions";
 
@@ -36,6 +36,7 @@ export default function AdminPanel({ usuarios, roles, cuentas, movementCounts, s
   // edición inline
   const [editId, setEditId] = useState<string | null>(null);
   const [eNombre, setENombre] = useState(""); const [eRol, setERol] = useState(""); const [reTo, setReTo] = useState("");
+  const [ePass, setEPass] = useState(""); const [savingPass, setSavingPass] = useState(false);
 
   // cuenta
   const [cuentaNombre, setCuentaNombre] = useState(""); const [cuentaTipo, setCuentaTipo] = useState("Débito"); const [savingC, setSavingC] = useState(false);
@@ -46,7 +47,7 @@ export default function AdminPanel({ usuarios, roles, cuentas, movementCounts, s
   const pill = (a: boolean) => ({ fontSize: 11.5, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: a ? C.inSoft : C.outSoft, color: a ? C.in : C.out });
 
   const abrirEdicion = (u: AdminUserRow) => {
-    setEditId(u.id); setENombre(u.full_name); setERol(u.role?.code ?? ""); setReTo("");
+    setEditId(u.id); setENombre(u.full_name); setERol(u.role?.code ?? ""); setReTo(""); setEPass("");
   };
 
   const onCrear = async () => {
@@ -66,6 +67,16 @@ export default function AdminPanel({ usuarios, roles, cuentas, movementCounts, s
     const res = await editarUsuario(u.id, cambios);
     if (!res.ok) return notify({ msg: res.error, kind: "error" });
     setLista(lista.map((x) => (x.id === u.id ? res.usuario : x))); notify({ msg: "Cambios guardados ✓", kind: "success" }); setEditId(null);
+  };
+
+  const onCambiarPass = async (u: AdminUserRow) => {
+    if (savingPass) return;
+    if (ePass.length < 6) return notify({ msg: "La contraseña debe tener al menos 6 caracteres.", kind: "error" });
+    setSavingPass(true);
+    const res = await cambiarPasswordUsuario(u.id, ePass);
+    setSavingPass(false);
+    if (!res.ok) return notify({ msg: res.error, kind: "error" });
+    setEPass(""); notify({ msg: "Contraseña actualizada ✓", kind: "success" });
   };
 
   const onToggle = async (u: AdminUserRow) => {
@@ -176,6 +187,19 @@ export default function AdminPanel({ usuarios, roles, cuentas, movementCounts, s
                           {!esYo && (
                             <button onClick={() => onToggle(u)} style={{ padding: "11px 14px", borderRadius: 11, border: `1.5px solid ${C.line}`, background: C.card, color: C.muted, fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Power size={15} /> {u.active ? "Desactivar" : "Activar"}</button>
                           )}
+                        </div>
+
+                        {/* Cambiar contraseña */}
+                        <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 12, marginBottom: 12 }}>
+                          <label style={label}>Cambiar contraseña</label>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <input type="text" value={ePass} onChange={(e) => setEPass(e.target.value)} style={{ ...inputCls, marginBottom: 0, flex: 1 }} placeholder="Nueva contraseña (mín. 6)" />
+                            <button onClick={() => onCambiarPass(u)} disabled={savingPass || ePass.length < 6}
+                              style={{ padding: "0 14px", borderRadius: 11, border: "none", background: ePass.length < 6 ? "#C4D2D1" : C.deep, color: "#fff", fontWeight: 600, fontSize: 13.5, cursor: ePass.length < 6 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                              <KeyRound size={15} /> {savingPass ? "…" : "Cambiar"}
+                            </button>
+                          </div>
+                          <div style={{ fontSize: 11.5, color: C.muted, marginTop: 8 }}>La fijas tú y se la comunicas a la persona. Aplica de inmediato.</div>
                         </div>
 
                         {!esYo && (n > 0 ? (

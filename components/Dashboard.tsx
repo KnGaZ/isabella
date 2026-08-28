@@ -34,6 +34,10 @@ type DailyByCaja = { date: string; caja_id: string; ingresos: number; egresos: n
 type DailyByArea = { date: string; area_id: string; ingresos: number; egresos: number };
 type PurchaseLite = { date: string; area_id: string | null; amount: number; cash_movement_id: string | null };
 type AreaLite = { id: string; name: string };
+type CashRaw = { date: string; type: string; tender: string; amount_mxn: number; user_id: string | null };
+type UserLite = { id: string; full_name: string };
+type ReservationLite = { channel_id: string | null; check_in: string; check_out: string; status: string };
+type ChannelLite = { id: string; name: string };
 
 type Props = {
   fecha: string;
@@ -44,13 +48,21 @@ type Props = {
   dailyByArea: DailyByArea[];
   purchases: PurchaseLite[];
   areas: AreaLite[];
+  cashRaw: CashRaw[];
+  users: UserLite[];
+  reservations: ReservationLite[];
+  channels: ChannelLite[];
+  roleCode: string | null;
   descuadre: number | null;
 };
 
 type Periodo = "hoy" | "semana" | "mes" | "rango";
 
-export default function Dashboard({ fecha, cajas, balances, dailyTotals, dailyByCaja, dailyByArea = [], purchases = [], areas = [], descuadre }: Props) {
+export default function Dashboard({ fecha, cajas, balances, dailyTotals, dailyByCaja, dailyByArea = [], purchases = [], areas = [], cashRaw = [], users = [], reservations = [], channels = [], roleCode, descuadre }: Props) {
   const [periodo, setPeriodo] = useState<Periodo>("hoy");
+  const [vista, setVista] = useState<"operativo" | "jefes">("operativo");
+  const puedeDireccion = ["ADMIN", "GERENCIA", "SOCIO"].includes(roleCode ?? "");
+  const vistaEfectiva = puedeDireccion ? vista : "operativo";
   const [rIni, setRIni] = useState(addDays(fecha, -6));
   const [rFin, setRFin] = useState(fecha);
 
@@ -109,6 +121,39 @@ export default function Dashboard({ fecha, cajas, balances, dailyTotals, dailyBy
       .sort((a, b) => (b.ingresos + b.egresos) - (a.ingresos + a.egresos));
   }, [dailyByArea, purchases, areas, from, to]);
 
+  // ===== Vista "Jefes" =====
+  const userMap = useMemo(() => new Map(users.map((u) => [u.id, u.full_name])), [users]);
+  const chanMap = useMemo(() => new Map(channels.map((c) => [c.id, c.name])), [channels]);
+
+  const porFormaPago = useMemo(() => {
+    const m: Record<string, number> = { EFECTIVO: 0, TARJETA: 0, TRANSFERENCIA: 0 };
+    for (const r of cashRaw) if (enRango(r.date) && r.type === "INGRESO" && r.tender in m) m[r.tender] += Number(r.amount_mxn);
+    return m;
+  }, [cashRaw, from, to]);
+  const maxFP = Math.max(1, porFormaPago.EFECTIVO, porFormaPago.TARJETA, porFormaPago.TRANSFERENCIA);
+  const totalFP = porFormaPago.EFECTIVO + porFormaPago.TARJETA + porFormaPago.TRANSFERENCIA;
+
+  const egresosPorResp = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of cashRaw) if (enRango(r.date) && r.type === "EGRESO") {
+      const k = r.user_id ?? "—";
+      m.set(k, (m.get(k) ?? 0) + Number(r.amount_mxn));
+    }
+    return [...m.entries()].map(([id, v]) => ({ id, name: id === "—" ? "Sin asignar" : (userMap.get(id) ?? "Sin nombre"), v })).sort((a, b) => b.v - a.v);
+  }, [cashRaw, from, to, userMap]);
+  const maxResp = Math.max(1, ...egresosPorResp.map((r) => r.v));
+
+  const reservasPorCanal = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of reservations) if (r.status !== "CANCELADA" && r.check_in >= from && r.check_in <= to) {
+      const k = r.channel_id ?? "—";
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return [...m.entries()].map(([id, n]) => ({ id, name: id === "—" ? "Sin canal" : (chanMap.get(id) ?? "—"), n })).sort((a, b) => b.n - a.n);
+  }, [reservations, from, to, chanMap]);
+  const maxCanal = Math.max(1, ...reservasPorCanal.map((r) => r.n));
+  const totalReservas = reservasPorCanal.reduce((s, r) => s + r.n, 0);
+
   // Serie por día (para la gráfica)
   const serie = useMemo(() => {
     const idx = new Map(dailyTotals.map((t) => [t.date, t]));
@@ -138,6 +183,21 @@ export default function Dashboard({ fecha, cajas, balances, dailyTotals, dailyBy
           <p style={{ fontSize: 13.5, color: C.muted, margin: "4px 0 0" }}>Hoy · {fmtFechaCorta(fecha)}</p>
         </div>
 
+        {/* Pestañas Operativo / Dirección (solo roles con permiso) */}
+        {puedeDireccion && (
+          <div style={{ display: "flex", background: C.card, border: `1px solid ${C.line}`, borderRadius: 13, padding: 4, marginBottom: 16 }}>
+            {([["operativo", "Operativo"], ["jefes", "Dirección"]] as const).map(([v, l]) => (
+              <button key={v} onClick={() => setVista(v)}
+                style={{ flex: 1, padding: "10px 4px", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13.5,
+                  fontFamily: "var(--font-instrument-sans),sans-serif", background: vista === v ? C.teal : "transparent",
+                  color: vista === v ? "#fff" : C.muted }}>
+                {l}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {vistaEfectiva === "operativo" && (<>
         {/* Efectivo en caja (estado actual, sin periodo) */}
         <section style={{ background: C.card, borderRadius: 20, border: `1px solid ${C.line}`, padding: 20, boxShadow: "0 6px 22px rgba(11,43,48,.06)", marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: ".03em", textTransform: "uppercase", color: C.muted }}>Efectivo en caja ahora</div>
@@ -309,6 +369,102 @@ export default function Dashboard({ fecha, cajas, balances, dailyTotals, dailyBy
           </div>
           <ChevronRight size={18} color={C.muted} />
         </Link>
+        </>)}
+
+        {vistaEfectiva === "jefes" && (<>
+          {/* Selector de periodo (jefes) */}
+          <div style={{ display: "flex", background: C.card, border: `1px solid ${C.line}`, borderRadius: 13, padding: 4, marginBottom: 12 }}>
+            {segPeriodo("hoy", "Hoy")}{segPeriodo("semana", "Semana")}{segPeriodo("mes", "Mes")}{segPeriodo("rango", "Rango")}
+          </div>
+          {periodo === "rango" && (
+            <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+              <input type="date" value={rIni} max={fecha} onChange={(e) => setRIni(e.target.value)}
+                style={{ flex: 1, border: `1.5px solid ${C.line}`, borderRadius: 12, padding: "10px 12px", fontSize: 14, background: C.card, color: C.ink, fontFamily: "var(--font-instrument-sans),sans-serif" }} />
+              <input type="date" value={rFin} max={fecha} onChange={(e) => setRFin(e.target.value)}
+                style={{ flex: 1, border: `1.5px solid ${C.line}`, borderRadius: 12, padding: "10px 12px", fontSize: 14, background: C.card, color: C.ink, fontFamily: "var(--font-instrument-sans),sans-serif" }} />
+            </div>
+          )}
+
+          {/* Ingresos por forma de pago */}
+          <section style={{ background: C.card, borderRadius: 20, border: `1px solid ${C.line}`, padding: 18, boxShadow: "0 6px 22px rgba(11,43,48,.06)", marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: ".03em", textTransform: "uppercase", color: C.muted, marginBottom: 14 }}>
+              Ingresos por forma de pago · {etiquetaPeriodo}
+            </div>
+            {totalFP === 0 ? (
+              <div style={{ fontSize: 13.5, color: C.muted, textAlign: "center", padding: "8px 0" }}>Sin ingresos en este periodo.{periodo === "hoy" ? " Prueba con Semana o Mes." : ""}</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+                {([["Efectivo", porFormaPago.EFECTIVO, C.in], ["Tarjeta", porFormaPago.TARJETA, C.deep], ["Transferencia", porFormaPago.TRANSFERENCIA, "#C98A1B"]] as [string, number, string][]).map(([l, v, col]) => (
+                  <div key={l}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 3, background: col }} />
+                      <span style={{ flex: 1, fontSize: 13.5, fontWeight: 500 }}>{l}</span>
+                      <span style={{ ...mono, fontSize: 13.5, fontWeight: 700, color: v > 0 ? C.ink : C.muted }}>{money(v)}</span>
+                    </div>
+                    <div style={{ height: 6, borderRadius: 999, background: C.mist, overflow: "hidden" }}>
+                      <div style={{ width: `${(v / maxFP) * 100}%`, height: "100%", background: col, borderRadius: 999 }} />
+                    </div>
+                  </div>
+                ))}
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: C.muted, marginTop: 2, paddingTop: 10, borderTop: `1px solid ${C.mist}` }}>
+                  <span>Total ingresos</span><span style={{ ...mono, fontWeight: 700, color: C.ink }}>{money(totalFP)}</span>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Egresos por responsable */}
+          <section style={{ background: C.card, borderRadius: 20, border: `1px solid ${C.line}`, padding: 18, boxShadow: "0 6px 22px rgba(11,43,48,.06)", marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: ".03em", textTransform: "uppercase", color: C.muted, marginBottom: 14 }}>
+              Egresos de caja por responsable · {etiquetaPeriodo}
+            </div>
+            {egresosPorResp.length === 0 ? (
+              <div style={{ fontSize: 13.5, color: C.muted, textAlign: "center", padding: "8px 0" }}>Sin egresos en este periodo.{periodo === "hoy" ? " Prueba con Semana o Mes." : ""}</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+                {egresosPorResp.map((r) => (
+                  <div key={r.id}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                      <span style={{ flex: 1, fontSize: 13.5, fontWeight: 500 }}>{r.name}</span>
+                      <span style={{ ...mono, fontSize: 13.5, fontWeight: 700, color: C.out }}>{money(r.v)}</span>
+                    </div>
+                    <div style={{ height: 6, borderRadius: 999, background: C.mist, overflow: "hidden" }}>
+                      <div style={{ width: `${(r.v / maxResp) * 100}%`, height: "100%", background: C.out, borderRadius: 999 }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Reservas por plataforma */}
+          <section style={{ background: C.card, borderRadius: 20, border: `1px solid ${C.line}`, padding: 18, boxShadow: "0 6px 22px rgba(11,43,48,.06)", marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: ".03em", textTransform: "uppercase", color: C.muted, marginBottom: 4 }}>
+              Reservas por plataforma · {etiquetaPeriodo}
+            </div>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 14 }}>Llegadas en el periodo · {totalReservas} en total</div>
+            {reservasPorCanal.length === 0 ? (
+              <div style={{ fontSize: 13.5, color: C.muted, textAlign: "center", padding: "8px 0" }}>Sin llegadas en este periodo.{periodo === "hoy" ? " Prueba con Semana o Mes." : ""}</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+                {reservasPorCanal.map((c) => (
+                  <div key={c.id}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                      <span style={{ flex: 1, fontSize: 13.5, fontWeight: 500 }}>{c.name}</span>
+                      <span style={{ ...mono, fontSize: 13.5, fontWeight: 700, color: C.ink }}>{c.n}</span>
+                    </div>
+                    <div style={{ height: 6, borderRadius: 999, background: C.mist, overflow: "hidden" }}>
+                      <div style={{ width: `${(c.n / maxCanal) * 100}%`, height: "100%", background: C.teal, borderRadius: 999 }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ fontSize: 11.5, color: C.muted, marginTop: 12, lineHeight: 1.4 }}>
+              Cuenta de reservas por canal. El monto en dinero por plataforma llegará cuando liguemos ingresos con reservas.
+            </div>
+          </section>
+        </>)}
       </div>
     </div>
   );

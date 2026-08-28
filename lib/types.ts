@@ -1,6 +1,6 @@
 export type MovementType = "INGRESO" | "EGRESO";
 export type CurrencyCode = "MXN" | "USD";
-export type TenderType = "EFECTIVO" | "TARJETA";
+export type TenderType = "EFECTIVO" | "TARJETA" | "TRANSFERENCIA";
 
 export type Caja = {
   id: string;

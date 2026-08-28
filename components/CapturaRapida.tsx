@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Plus, Minus, ChevronDown, ChevronUp, Banknote, CreditCard, Calendar, User, X } from "lucide-react";
+import { Check, Plus, Minus, ChevronDown, ChevronUp, Banknote, CreditCard, ArrowLeftRight, Calendar, User, X } from "lucide-react";
 import { registrarMovimiento } from "@/app/captura/actions";
 import { notificarCaja } from "@/app/captura/whatsapp";
 import type { Area, Caja, CashMovementRow, CurrencyCode, MovementType, TenderType, UserProfile } from "@/lib/types";
@@ -110,7 +110,7 @@ export default function CapturaRapida({
       area: areaObj?.name ?? "—",
       concepto: concepto,
       responsable: responsable.full_name,
-            }).catch(() => {});
+        }).then((r) => { if (!r?.ok) console.log("WA error:", r?.error); }).catch((e) => console.log("WA catch:", e));
     mostrarToast(
       { msg: (type === "INGRESO" ? "Ingreso" : "Egreso") + " registrado · Folio #" + result.movimiento.folio, kind: "success" },
       2600
@@ -193,20 +193,23 @@ export default function CapturaRapida({
           </div>
 
           {/* Moneda + Medio */}
-          <div style={{ display: "flex", gap: 10, marginBottom: currency === "USD" ? 14 : 18 }}>
+          <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
             <div style={{ flex: 1, display: "flex", background: C.mist, borderRadius: 13, padding: 4 }}>
               {(["MXN", "USD"] as const).map((m) => (
                 <button key={m} onClick={() => setCurrency(m)} style={seg(currency === m)}>{m}</button>
               ))}
             </div>
-            <div style={{ flex: 1.3, display: "flex", background: C.mist, borderRadius: 13, padding: 4 }}>
-              <button onClick={() => setTender("EFECTIVO")} style={{ ...seg(tender === "EFECTIVO"), display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                <Banknote size={16} /> Efectivo
-              </button>
-              <button onClick={() => setTender("TARJETA")} style={{ ...seg(tender === "TARJETA"), display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                <CreditCard size={16} /> Tarjeta
-              </button>
-            </div>
+          </div>
+          <div style={{ display: "flex", background: C.mist, borderRadius: 13, padding: 4, marginBottom: currency === "USD" ? 14 : 18 }}>
+            <button onClick={() => setTender("EFECTIVO")} style={{ ...seg(tender === "EFECTIVO"), display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontSize: 12.5 }}>
+              <Banknote size={15} /> Efectivo
+            </button>
+            <button onClick={() => setTender("TARJETA")} style={{ ...seg(tender === "TARJETA"), display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontSize: 12.5 }}>
+              <CreditCard size={15} /> Tarjeta
+            </button>
+            <button onClick={() => setTender("TRANSFERENCIA")} style={{ ...seg(tender === "TRANSFERENCIA"), display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontSize: 12.5 }}>
+              <ArrowLeftRight size={15} /> Transfer.
+            </button>
           </div>
 
           {/* Tipo de cambio (solo USD) */}
@@ -296,8 +299,8 @@ export default function CapturaRapida({
                 <div style={reciboRow}><User size={13} color={C.muted} /> {responsable.full_name}</div>
                 <div style={reciboRow}><span style={{ fontSize: 14 }}>{cajaObj?.emoji ?? ""}</span> {cajaObj ? cajaObj.name : "—"}</div>
                 <div style={reciboRow}>
-                  {tender === "EFECTIVO" ? <Banknote size={13} color={C.muted} /> : <CreditCard size={13} color={C.muted} />}
-                  {tender === "EFECTIVO" ? "Efectivo" : "Tarjeta"} · {areaObj?.name ?? "—"}
+                  {tender === "EFECTIVO" ? <Banknote size={13} color={C.muted} /> : tender === "TARJETA" ? <CreditCard size={13} color={C.muted} /> : <ArrowLeftRight size={13} color={C.muted} />}
+                  {tender === "EFECTIVO" ? "Efectivo" : tender === "TARJETA" ? "Tarjeta" : "Transferencia"} · {areaObj?.name ?? "—"}
                 </div>
                 <div style={{ marginTop: 8, color: C.ink, fontWeight: 700, wordBreak: "break-word" }}>
                   {concepto.trim() || <span style={{ color: "#B7C4C4", fontWeight: 400 }}>— concepto —</span>}

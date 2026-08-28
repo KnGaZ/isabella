@@ -13,16 +13,17 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("id, active")
+    .select("id, active, role:roles(code)")
     .eq("auth_uid", user.id)
     .maybeSingle();
   if (!profile) return <Aviso mensaje="Tu usuario no está configurado en el sistema. Contacta al administrador." />;
   if (!profile.active) return <Aviso mensaje="Tu usuario está inactivo. Contacta al administrador." />;
+  const roleCode = (profile.role as { code?: string } | null)?.code ?? null;
 
   const today = new Date().toISOString().slice(0, 10);
   const windowStart = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
 
-  const [{ data: cajasData }, { data: bal }, { data: dt }, { data: dbc }, { data: counts }, { data: dba }, { data: pur }, { data: areasData }] =
+  const [{ data: cajasData }, { data: bal }, { data: dt }, { data: dbc }, { data: counts }, { data: dba }, { data: pur }, { data: areasData }, { data: cashRaw }, { data: usersData }, { data: resvData }, { data: chanData }] =
     await Promise.all([
       supabase.from("cajas").select("id, code, name, emoji").eq("active", true),
       supabase.from("v_cash_balance").select("caja_id, currency, balance"),
@@ -32,6 +33,10 @@ export default async function DashboardPage() {
       supabase.from("v_daily_by_area").select("date, area_id, ingresos, egresos").gte("date", windowStart),
       supabase.from("purchases").select("date, area_id, amount, cash_movement_id").gte("date", windowStart),
       supabase.from("areas").select("id, name").eq("active", true),
+      supabase.from("cash_movements").select("date, type, tender, amount_mxn, user_id").gte("date", windowStart),
+      supabase.from("users").select("id, full_name"),
+      supabase.from("reservations").select("channel_id, check_in, check_out, status"),
+      supabase.from("channels").select("id, name").eq("active", true),
     ]);
 
   const cajas = sortCajas((cajasData ?? []) as Caja[]);
@@ -50,6 +55,11 @@ export default async function DashboardPage() {
       dailyByArea={(dba ?? []) as { date: string; area_id: string; ingresos: number; egresos: number }[]}
       purchases={(pur ?? []) as { date: string; area_id: string | null; amount: number; cash_movement_id: string | null }[]}
       areas={(areasData ?? []) as { id: string; name: string }[]}
+      cashRaw={(cashRaw ?? []) as { date: string; type: string; tender: string; amount_mxn: number; user_id: string | null }[]}
+      users={(usersData ?? []) as { id: string; full_name: string }[]}
+      reservations={(resvData ?? []) as { channel_id: string | null; check_in: string; check_out: string; status: string }[]}
+      channels={(chanData ?? []) as { id: string; name: string }[]}
+      roleCode={roleCode}
       descuadre={descuadre}
     />
   );

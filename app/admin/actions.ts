@@ -96,6 +96,26 @@ export async function editarUsuario(
   return { ok: true, usuario: upd as unknown as AdminUserRow };
 }
 
+/* ─────────────── CAMBIAR CONTRASEÑA ─────────────── */
+export async function cambiarPasswordUsuario(
+  id: string, newPassword: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const g = await requireAdmin();
+  if (!g.ok) return g;
+  if (!newPassword || newPassword.length < 6) return { ok: false, error: "La contraseña debe tener al menos 6 caracteres." };
+
+  const admin = createAdminClient();
+  const { data: actual } = await admin.from("users").select("full_name, auth_uid").eq("id", id).maybeSingle();
+  if (!actual) return { ok: false, error: "Usuario no encontrado." };
+  if (!actual.auth_uid) return { ok: false, error: "Este usuario no tiene acceso al sistema (no tiene correo/login)." };
+
+  const { error } = await admin.auth.admin.updateUserById(actual.auth_uid, { password: newPassword });
+  if (error) return { ok: false, error: error.message };
+
+  await logAudit(admin, g.profileId, "CHANGE_PASSWORD", id, { name: actual.full_name });
+  return { ok: true };
+}
+
 /* ─────────────── ACTIVAR / DESACTIVAR ─────────────── */
 export async function cambiarActivoUsuario(
   id: string, active: boolean
